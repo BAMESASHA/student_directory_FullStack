@@ -32,7 +32,7 @@ const dbPath = path.join(__dirname, "database.db");
 const db = new Database(dbPath);
 console.log("✅ Connected to SQLite database");
 
-// Make DB available to controllers
+// Make DB available to routes
 app.use((req, res, next) => {
   req.db = db;
   next();
@@ -60,34 +60,43 @@ db.prepare(`
 `).run();
 
 // ===============================
-// ✅ Health Check
+// ✅ Public routes (NO AUTH)
 // ===============================
 app.get("/health", (req, res) => {
   res.json({ status: "ok", environment: NODE_ENV });
 });
 
 // ===============================
-// ✅ API Routes
+// ✅ API routes
 // ===============================
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 
 // ===============================
-// ✅ Serve Frontend (Production)
+// ✅ FRONTEND (ALWAYS PUBLIC)
 // ===============================
 if (NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend/dist");
+
+  // Serve static assets
   app.use(express.static(frontendPath));
-  app.get(/.*/, (req, res) => {
+
+  // React router fallback (Express 5 safe)
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });
 }
 
 // ===============================
-// ✅ Global Safety
+// ✅ Safety nets
 // ===============================
-process.on("uncaughtException", console.error);
-process.on("unhandledRejection", console.error);
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught exception:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("❌ Unhandled rejection:", err);
+});
 
 // ===============================
 // ✅ Start Server
@@ -97,8 +106,11 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 });
 
 // ===============================
-// ✅ Graceful Shutdown
+// ✅ Graceful shutdown
 // ===============================
 process.on("SIGTERM", () => {
-  server.close(() => process.exit(0));
+  server.close(() => {
+    console.log("✅ Server closed");
+    process.exit(0);
+  });
 });

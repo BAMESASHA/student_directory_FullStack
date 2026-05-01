@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install-all": "cd backend && npm install && cd ../frontend && npm install --include=dev",
+    "install-all": "cd backend && npm install",
+    "build": "vite build",
     "start": "node backend/server.js"
   },
   "engines": {

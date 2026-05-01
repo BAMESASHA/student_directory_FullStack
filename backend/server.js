@@ -7,8 +7,22 @@ const sqlite3 = require("sqlite3").verbose();
 dotenv.config();
 const app = express();
 
-// Middleware
-app.use(cors());
+// ===============================
+// 🌍 Environment
+// ===============================
+const NODE_ENV = process.env.NODE_ENV || "development";
+const PORT = process.env.PORT || 5000;
+
+// ===============================
+// ✅ Middleware
+// ===============================
+
+// CORS is not required in production when frontend + backend share one URL,
+// but we keep it enabled for local development.
+if (NODE_ENV !== "production") {
+  app.use(cors());
+}
+
 app.use(express.json());
 
 // ===============================
@@ -36,6 +50,14 @@ db.run(`
 `);
 
 // ===============================
+// ✅ Health Check (Railway-friendly)
+// ===============================
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", environment: NODE_ENV });
+});
+
+// ===============================
 // ✅ API Routes
 // ===============================
 
@@ -54,77 +76,3 @@ app.post("/api/students", (req, res) => {
   const { name, email, grade, major } = req.body;
 
   db.run(
-    `INSERT INTO students (name, email, grade, major)
-     VALUES (?, ?, ?, ?)`,
-    [name, email, grade, major],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.status(201).json({
-        id: this.lastID,
-        name,
-        email,
-        grade,
-        major
-      });
-    }
-  );
-});
-
-// Update student
-app.put("/api/students/:id", (req, res) => {
-  const { name, email, grade, major } = req.body;
-  const { id } = req.params;
-
-  db.run(
-    `UPDATE students
-     SET name = ?, email = ?, grade = ?, major = ?
-     WHERE id = ?`,
-    [name, email, grade, major, id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ message: "Student not found" });
-      }
-      res.json({ message: "Student updated" });
-    }
-  );
-});
-
-// Delete student
-app.delete("/api/students/:id", (req, res) => {
-  const { id } = req.params;
-
-  db.run("DELETE FROM students WHERE id = ?", id, function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ message: "Student not found" });
-    }
-    res.json({ message: "Student deleted" });
-  });
-});
-
-// ===============================
-// ✅ Serve Frontend (ONE URL)
-// ===============================
-
-const frontendPath = path.join(__dirname, "../frontend/dist");
-app.use(express.static(frontendPath));
-
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-// ===============================
-// ✅ Start server (Railway-safe)
-// ===============================
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});

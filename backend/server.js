@@ -104,8 +104,8 @@ if (NODE_ENV === "production") {
 
   app.use(express.static(frontendPath));
 
-  // SPA fallback (React Router support)
-  app.get("*", (req, res) => {
+  // ✅ Express 5–safe SPA fallback
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });
 }

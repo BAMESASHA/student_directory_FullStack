@@ -4,6 +4,10 @@ const dotenv = require("dotenv");
 const path = require("path");
 const Database = require("better-sqlite3");
 
+// Auth
+const authRoutes = require("./authRoutes");
+const { protect } = require("./middleware/auth");
+
 // ===============================
 // 🌍 Environment
 // ===============================
@@ -29,6 +33,12 @@ const dbPath = path.join(__dirname, "database.db");
 const db = new Database(dbPath);
 
 console.log("✅ Connected to SQLite database");
+
+// Make DB available to controllers
+app.use((req, res, next) => {
+  req.db = db;
+  next();
+});
 
 // ===============================
 // ✅ Database schema
@@ -59,19 +69,23 @@ app.get("/health", (req, res) => {
 });
 
 // ===============================
-// ✅ API Routes
+// ✅ Auth Routes
 // ===============================
+app.use("/api/auth", authRoutes);
 
-// Students
-app.get("/api/students", (req, res) => {
+// ===============================
+// ✅ Protected Student Routes
+// ===============================
+app.get("/api/students", protect, (req, res) => {
   try {
-    res.json(db.prepare("SELECT * FROM students").all());
-  } catch {
+    const students = db.prepare("SELECT * FROM students").all();
+    res.json(students);
+  } catch (err) {
     res.status(500).json({ error: "Failed to fetch students" });
   }
 });
 
-app.post("/api/students", (req, res) => {
+app.post("/api/students", protect, (req, res) => {
   const { name, email, grade, major } = req.body;
 
   if (!name || !email) {
@@ -94,38 +108,13 @@ app.post("/api/students", (req, res) => {
 });
 
 // ===============================
-// ✅ Minimal Auth (submission‑safe)
-// ===============================
-app.post("/api/login", (req, res) => {
-  const { email, password } = req.body;
-
-  const user = db
-    .prepare("SELECT * FROM users WHERE email = ?")
-    .get(email);
-
-  if (!user) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-
-  // Password check intentionally omitted for submission
-  res.json({ message: "Login successful", user: { email: user.email } });
-});
-
-app.post("/api/register", (req, res) => {
-  res.status(501).json({
-    error: "Registration not implemented"
-  });
-});
-
-// ===============================
 // ✅ Serve Frontend (Production)
 // ===============================
 if (NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend/dist");
-
   app.use(express.static(frontendPath));
 
-  // ✅ Express 5 safe SPA fallback
+  // Express 5 SPA fallback
   app.get(/.*/, (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });
@@ -134,8 +123,8 @@ if (NODE_ENV === "production") {
 // ===============================
 // ✅ Global Safety
 // ===============================
-process.on("uncaughtException", (err) => console.error(err));
-process.on("unhandledRejection", (err) => console.error(err));
+process.on("uncaughtException", console.error);
+process.on("unhandledRejection", console.error);
 
 // ===============================
 // ✅ Start Server

@@ -1,31 +1,31 @@
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
-// Verify JWT and attach user to request
+const JWT_SECRET = process.env.JWT_SECRET || "submission_secret_key";
+
+// ===============================
+// ✅ Protect routes with JWT
+// ===============================
 const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'No token provided. Access denied.' });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      error: "Not authorized, no token provided"
+    });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
-    next(err);
+    return res.status(403).json({
+      error: "Not authorized, token invalid"
+    });
   }
 };
 
-// Restrict to admin role
-const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: 'Access denied. Admins only.' });
-  }
-  next();
-};
-
-module.exports = { protect, adminOnly };
+module.exports = { protect };

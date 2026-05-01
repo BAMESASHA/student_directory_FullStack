@@ -1,5 +1,5 @@
 {
-  "name": "scholars-hub-backend",
+  "name": "backend",
   "version": "1.0.0",
   "description": "Scholar's Hub backend API",
   "main": "server.js",

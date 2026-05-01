@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
-const sqlite3 = require("sqlite3").verbose();
+const Database = require("better-sqlite3");
 
 // ===============================
 // 🌍 Environment
@@ -25,30 +25,23 @@ if (NODE_ENV !== "production") {
 app.use(express.json());
 
 // ===============================
-// ✅ SQLite setup
+// ✅ SQLite setup (better-sqlite3)
 // ===============================
 const dbPath = path.join(__dirname, "database.db");
+const db = new Database(dbPath);
 
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("❌ SQLite connection error:", err.message);
-  } else {
-    console.log("✅ Connected to SQLite database");
-  }
-});
+console.log("✅ Connected to SQLite database");
 
 // Create table if it doesn't exist
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS students (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL,
-      grade TEXT,
-      major TEXT
-    )
-  `);
-});
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS students (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    grade TEXT,
+    major TEXT
+  )
+`).run();
 
 // ===============================
 // ✅ Health Check (Railway)
@@ -66,13 +59,13 @@ app.get("/health", (req, res) => {
 
 // Get all students
 app.get("/api/students", (req, res) => {
-  db.all("SELECT * FROM students", [], (err, rows) => {
-    if (err) {
-      console.error("❌ Fetch error:", err.message);
-      return res.status(500).json({ error: err.message });
-    }
+  try {
+    const rows = db.prepare("SELECT * FROM students").all();
     res.json(rows);
-  });
+  } catch (err) {
+    console.error("❌ Fetch error:", err);
+    res.status(500).json({ error: "Failed to fetch students" });
+  }
 });
 
 // Add a student
@@ -83,23 +76,24 @@ app.post("/api/students", (req, res) => {
     return res.status(400).json({ error: "Name and email are required" });
   }
 
-  const query =
-    "INSERT INTO students (name, email, grade, major) VALUES (?, ?, ?, ?)";
-
-  db.run(query, [name, email, grade, major], function (err) {
-    if (err) {
-      console.error("❌ Insert error:", err.message);
-      return res.status(500).json({ error: err.message });
-    }
+  try {
+    const result = db
+      .prepare(
+        "INSERT INTO students (name, email, grade, major) VALUES (?, ?, ?, ?)"
+      )
+      .run(name, email, grade, major);
 
     res.status(201).json({
-      id: this.lastID,
+      id: result.lastInsertRowid,
       name,
       email,
       grade,
       major
     });
-  });
+  } catch (err) {
+    console.error("❌ Insert error:", err);
+    res.status(500).json({ error: "Failed to insert student" });
+  }
 });
 
 // ===============================

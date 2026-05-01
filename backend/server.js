@@ -117,10 +117,19 @@ if (NODE_ENV === "production") {
 }
 
 // ===============================
-// ✅ Start Server
+// ✅ Global error safety (recommended)
 // ===============================
-app.listen(PORT, () => {
-  console.log(
-    `🚀 Server running in ${NODE_ENV} mode on port ${PORT}`
-  );
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ Unhandled Rejection:", reason);
+});
+
+// ===============================
+// ✅ Start Server (FIXED FOR RAILWAY)
+// ===============================
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
 });

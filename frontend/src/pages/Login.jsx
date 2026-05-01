@@ -25,22 +25,30 @@ export default function Login({ onLogin }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
-    setLoading(true);
-    try {
-      const res = await loginUser(form);
-      setToken(res.token);
-      setUser(res.user);
-      onLogin(res.user);
-      navigate('/home');
-    } catch (err) {
-      setServerErr(err.message || 'Login failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+  const validationErrors = validate();
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const res = await loginUser({
+      email: form.email,
+      password: form.password,
+    });
+
+    setToken(res.token);
+    setUser(res.user);
+    onLogin(res.user);
+    navigate('/home');
+  } catch (err) {
+    setServerErr(err.message || 'Login failed. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="auth-page">

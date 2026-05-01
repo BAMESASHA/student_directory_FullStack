@@ -117,7 +117,7 @@ if (NODE_ENV === "production") {
 }
 
 // ===============================
-// ✅ Global error safety (recommended)
+// ✅ Global error safety
 // ===============================
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
@@ -128,8 +128,19 @@ process.on("unhandledRejection", (reason) => {
 });
 
 // ===============================
-// ✅ Start Server (FIXED FOR RAILWAY)
+// ✅ Start Server (Railway‑correct)
 // ===============================
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
+});
+
+// ===============================
+// ✅ Graceful shutdown (Railway requires this)
+// ===============================
+process.on("SIGTERM", () => {
+  console.log("🛑 SIGTERM received. Shutting down gracefully...");
+  server.close(() => {
+    console.log("✅ Server closed");
+    process.exit(0);
+  });
 });

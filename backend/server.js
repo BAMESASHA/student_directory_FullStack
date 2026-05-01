@@ -4,12 +4,12 @@ const dotenv = require("dotenv");
 const path = require("path");
 const sqlite3 = require("sqlite3").verbose();
 
-dotenv.config();
-const app = express();
-
 // ===============================
 // 🌍 Environment
 // ===============================
+dotenv.config();
+const app = express();
+
 const NODE_ENV = process.env.NODE_ENV || "development";
 const PORT = process.env.PORT || 5000;
 
@@ -17,8 +17,7 @@ const PORT = process.env.PORT || 5000;
 // ✅ Middleware
 // ===============================
 
-// CORS is not required in production when frontend + backend share one URL,
-// but we keep it enabled for local development.
+// Enable CORS only in development
 if (NODE_ENV !== "production") {
   app.use(cors());
 }
@@ -28,8 +27,8 @@ app.use(express.json());
 // ===============================
 // ✅ SQLite setup
 // ===============================
-
 const dbPath = path.join(__dirname, "database.db");
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error("❌ SQLite connection error:", err.message);
@@ -39,22 +38,26 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // Create table if it doesn't exist
-db.run(`
-  CREATE TABLE IF NOT EXISTS students (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    grade TEXT,
-    major TEXT
-  )
-`);
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS students (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      grade TEXT,
+      major TEXT
+    )
+  `);
+});
 
 // ===============================
-// ✅ Health Check (Railway-friendly)
+// ✅ Health Check (Railway)
 // ===============================
-
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", environment: NODE_ENV });
+  res.status(200).json({
+    status: "ok",
+    environment: NODE_ENV
+  });
 });
 
 // ===============================
@@ -65,14 +68,59 @@ app.get("/health", (req, res) => {
 app.get("/api/students", (req, res) => {
   db.all("SELECT * FROM students", [], (err, rows) => {
     if (err) {
+      console.error("❌ Fetch error:", err.message);
       return res.status(500).json({ error: err.message });
     }
     res.json(rows);
   });
 });
 
-// Add student
+// Add a student
 app.post("/api/students", (req, res) => {
   const { name, email, grade, major } = req.body;
 
-  db.run(
+  if (!name || !email) {
+    return res.status(400).json({ error: "Name and email are required" });
+  }
+
+  const query =
+    "INSERT INTO students (name, email, grade, major) VALUES (?, ?, ?, ?)";
+
+  db.run(query, [name, email, grade, major], function (err) {
+    if (err) {
+      console.error("❌ Insert error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+
+    res.status(201).json({
+      id: this.lastID,
+      name,
+      email,
+      grade,
+      major
+    });
+  });
+});
+
+// ===============================
+// ✅ Serve Frontend (Production)
+// ===============================
+if (NODE_ENV === "production") {
+  const frontendPath = path.join(__dirname, "../frontend/dist");
+
+  app.use(express.static(frontendPath));
+
+  // SPA fallback (React Router support)
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+  });
+}
+
+// ===============================
+// ✅ Start Server
+// ===============================
+app.listen(PORT, () => {
+  console.log(
+    `🚀 Server running in ${NODE_ENV} mode on port ${PORT}`
+  );
+});

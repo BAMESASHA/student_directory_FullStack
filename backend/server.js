@@ -4,9 +4,9 @@ const dotenv = require("dotenv");
 const path = require("path");
 const Database = require("better-sqlite3");
 
-// Auth
+// Routes
 const authRoutes = require("./routes/authRoutes");
-const { protect } = require("./middleware/auth");
+const studentRoutes = require("./routes/studentRoutes");
 
 // ===============================
 // 🌍 Environment
@@ -23,7 +23,6 @@ const PORT = process.env.PORT || 5000;
 if (NODE_ENV !== "production") {
   app.use(cors());
 }
-
 app.use(express.json());
 
 // ===============================
@@ -31,7 +30,6 @@ app.use(express.json());
 // ===============================
 const dbPath = path.join(__dirname, "database.db");
 const db = new Database(dbPath);
-
 console.log("✅ Connected to SQLite database");
 
 // Make DB available to controllers
@@ -69,43 +67,10 @@ app.get("/health", (req, res) => {
 });
 
 // ===============================
-// ✅ Auth Routes
+// ✅ API Routes
 // ===============================
 app.use("/api/auth", authRoutes);
-
-// ===============================
-// ✅ Protected Student Routes
-// ===============================
-app.get("/api/students", protect, (req, res) => {
-  try {
-    const students = db.prepare("SELECT * FROM students").all();
-    res.json(students);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch students" });
-  }
-});
-
-app.post("/api/students", protect, (req, res) => {
-  const { name, email, grade, major } = req.body;
-
-  if (!name || !email) {
-    return res.status(400).json({ error: "Name and email required" });
-  }
-
-  const result = db
-    .prepare(
-      "INSERT INTO students (name, email, grade, major) VALUES (?, ?, ?, ?)"
-    )
-    .run(name, email, grade, major);
-
-  res.status(201).json({
-    id: result.lastInsertRowid,
-    name,
-    email,
-    grade,
-    major
-  });
-});
+app.use("/api/students", studentRoutes);
 
 // ===============================
 // ✅ Serve Frontend (Production)
@@ -113,8 +78,6 @@ app.post("/api/students", protect, (req, res) => {
 if (NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend/dist");
   app.use(express.static(frontendPath));
-
-  // Express 5 SPA fallback
   app.get(/.*/, (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });

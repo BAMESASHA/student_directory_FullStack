@@ -5,7 +5,7 @@ const path = require("path");
 const Database = require("better-sqlite3");
 
 // Auth
-const authRoutes = require("./authRoutes");
+const authRoutes = require("./routes/authRoutes");
 const { protect } = require("./middleware/auth");
 
 // ===============================

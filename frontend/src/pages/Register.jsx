@@ -25,22 +25,34 @@ export default function Register({ onLogin }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
-    setLoading(true);
-    try {
-      const res = await registerUser({ name: form.name, email: form.email, password: form.password });
-      setToken(res.token);
-      setUser(res.user);
-      onLogin(res.user);
-      navigate('/home');
-    } catch (err) {
-      setServerErr(err.message || 'Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+  const validationErrors = validate();
+
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // ✅ ONLY send what backend expects
+    const res = await registerUser({
+      email: form.email,
+      password: form.password,
+    });
+
+    setToken(res.token);
+    setUser(res.user);
+    onLogin(res.user);
+
+    navigate("/home");
+  } catch (err) {
+    setServerErr(err.message || "Registration failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const strength = !form.password ? 0 : form.password.length < 6 ? 1 : form.password.length < 10 ? 2 : 3;
   const strengthLabel = ['', 'Weak', 'Good', 'Strong'];
